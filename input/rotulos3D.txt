@@ -1,0 +1,12 @@
+1	direita
+2	esquerda
+3	quadrado
+4	tenis
+5	Z
+6	baixo
+7	cima
+8	circulo
+9	diagonalbaixoesquerda
+10	diagonalcimaesquerda
+11	diagonaldireitabaixo
+12	diagonaldireitacima
