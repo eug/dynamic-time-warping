@@ -1,25 +1,25 @@
 
-def _parse_line_2d(line):
+def _parse_line_1d(line):
     values = line.split()
     label, series = values[0], values[1:]
     label = int(label)
-    series = list(map(float, series))
+    series = list(map(lambda x :(float(x),), series))
     return label, series
 
 
-def read_input_2d(folder='input'):
+def read_input_1d(folder='input'):
     train = []
     train_filepath = '{}/{}'.format(folder, 'treino.txt')
     with open(train_filepath, 'r') as f:
         for line in f.readlines():
-            entry = _parse_line_2d(line)
+            entry = _parse_line_1d(line)
             train.append(entry)
     
     test = []
     test_filepath = '{}/{}'.format(folder, 'teste.txt')
     with open(test_filepath, 'r') as f:
         for line in f.readlines():
-            entry = entry = _parse_line_2d(line)
+            entry = entry = _parse_line_1d(line)
             test.append(entry)
 
     labels = {}
