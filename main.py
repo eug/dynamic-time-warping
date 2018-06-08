@@ -1,81 +1,126 @@
+import getopt
 import math
-from utils.io import read_input_2d, read_input_3d
 import sys
+
 from tqdm import tqdm
 
-
-def matrix(n, m=None, default=0):
-    m = m or n
-    return [[default] * m for _ in range(n)]
-
-
-def dtw_naive(s, t, prune_score=math.inf):
-    n, m = len(s), len(t)
-    dtw = matrix(n, m, default=math.inf)
-    dtw[0][0] = 0
-    min_row_score = -1
-
-    for i in range(1, n):
-        min_row_score = math.inf
-
-        for j in range(1, m):
-            dtw[i][j] = abs(s[i] - t[j]) + min(dtw[i-1][j], dtw[i][j-1], dtw[i-1][j-1])
-            # min_row_score = min(min_row_score, dtw[i][j])
-
-        if min_row_score > prune_score:
-            return min_row_score
-    
-    return min_row_score
+from dtw import dtw_naive, dtw_sakoe_chiba
+from utils.distance import abs_distance, euclidean_distance
+from utils.io import read_input_1d, read_input_3d
 
 
-def dtw_sakoe_chiba(s, t, w, prune_score=math.inf):
-    n, m = len(s), len(t)
-    w = max(w, abs(n - m) + 1)
-    dtw = matrix(n, m, default=math.inf)
-    dtw[0][0] = 0
-    min_row_score = -1
+class Config:
+    algo_func = False
+    algo_kwargs = {}
+    dimensions  = False
+    show_help = False
 
-    for i in range(1, n):
-        min_row_score = math.inf
-
-        for j in range(max(1, i-w), min(m, i+w)):
-            dtw[i][j] = abs(s[i] - t[j]) + min(dtw[i-1][j], dtw[i][j-1], dtw[i-1][j-1])
-            min_row_score = min(min_row_score, dtw[i][j])
-
-        if min_row_score > prune_score:
-            return min_row_score
-
-    return min_row_score
-
-
-def predict(train, test):
+def predict(train, test, algo_func, algo_kwargs):
     y_pred = []
     for tsl, t in tqdm(test):
+        algo_kwargs['t'] = t
         min_label, min_score = -1, math.inf
         for trl, s in train:
-            # score = dtw_sakoe_chiba(s, t, 5, min_score)
-            score = dtw_naive(s, t, min_score)
+            algo_kwargs['s'] = s
+            score = algo_func(**algo_kwargs)
             if score < min_score:
                 min_score = score
                 min_label = trl
+                algo_kwargs['prune_score'] = min_score
         y_pred.append(tsl == min_label)
-    
+
     return y_pred
 
+def parse_args(argv):
+    shortopts = 'm:d:a:w:h'
 
-train, test, labels = read_input_2d()
-y_pred = predict(train, test)
-print(sum(y_pred))
-print(len(y_pred))
-print( sum(y_pred) / len(y_pred) * 100 )
+    longopts = [
+        'metric=',
+        'dimensions=',
+        'algorithm=',
+        'warp=',
+        'help'
+    ]
 
-# print(len(train[0][1]), len(test[0][1]))
-# n, m = len(train[0][1]), len(test[0][1])
-# dtw = dtw_naive(train[0][1], test[0][1])
-# dtw = dtw_sakoe_chiba(train[0][1], test[0][1], 5)
-# print( dtw[len(train[0][1])-1][len(test[0][1])-1] )
-# print(dtw)
-# for i in range(n):
-#     for j in range(m):
-#         sys.stdout.write(str(dtw[i][j]) + "\t")
-#     sys.stdout.write("\n")
+    config = Config()
+    options, _ = getopt.getopt(sys.argv[1:], shortopts, longopts)
+
+    for opt, arg in options:
+        if opt in ('-m', '--metric'):
+            if arg == 'absolute':
+                config.algo_kwargs['dist'] = abs_distance
+            elif arg == 'euclidean':
+                config.algo_kwargs['dist'] = euclidean_distance
+        if opt in ('-d', '--dimensions'):
+            if arg in ('1' , '3'):
+                config.dimensions = int(arg)
+        elif opt in ('-a', '--algorithm'):
+            if arg == 'naive':
+                config.algo_func = dtw_naive
+            elif arg == 'sakoe_chiba':
+                config.algo_func = dtw_sakoe_chiba
+        elif opt in ('-w', '--warp'):
+            config.algo_kwargs['w'] = int(arg)
+        elif opt in ('-h', '--help'):
+            config.show_help = True
+    
+    return config
+
+
+def print_help():
+    print("""Dynamic Time Warping Algorithm.
+Usage:
+    python main.py -d 1 -m euclidean -a naive
+    python main.py -d 3 -m absolute -a sakoe_chiba -w 7
+
+Options:
+    -a --algorithm=naive|sakoe_chiba    DTW algorithm
+    -d --dimensions=1|3                 Data points dimensions
+    -m --metric=absolute|euclidean      Distance metric
+    -w --warp=NUM                       Warp parameter (sakoe_chiba only)
+    -h --help                           Print this message
+    """)
+
+def main():
+    if len(sys.argv) <= 1:
+        print('Missing arguments.')
+        sys.exit(1)
+
+    cfg = parse_args(sys.argv[1:])
+    train, test, labels = None, None, None
+
+    if cfg.show_help:
+        print_help()
+        sys.exit(0)
+
+    if not cfg.algo_func:
+        print('Missing algorithm argument.')
+        sys.exit(1)
+
+    if cfg.dimensions == 1:
+        train, test, labels = read_input_1d()
+    elif cfg.dimensions == 3:
+        train, test, labels = read_input_1d()
+    else:
+        print('Missing dimensions argument.')
+        sys.exit(1)
+
+    if 'dist' not in cfg.algo_kwargs:
+        print('Missing metric argument.')
+        sys.exit(1)
+
+    if cfg.algo_func == dtw_sakoe_chiba:
+        if 'w' not in cfg.algo_kwargs:
+            print('Missing warp argument.')
+            sys.exit(1)
+        elif cfg.algo_kwargs['w'] <= 0:
+            print('Invalid warp argument (it must be > 0).')
+            sys.exit(1)
+
+    y_pred = predict(train, test, cfg.algo_func, cfg.algo_kwargs)
+    print(sum(y_pred))
+    print(len(y_pred))
+    print( sum(y_pred) / len(y_pred) * 100 )
+
+if __name__ == '__main__':
+    main()
