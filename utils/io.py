@@ -19,7 +19,7 @@ def read_input_1d(folder='input'):
     test_filepath = '{}/{}'.format(folder, 'teste.txt')
     with open(test_filepath, 'r') as f:
         for line in f.readlines():
-            entry = entry = _parse_line_1d(line)
+            entry = _parse_line_1d(line)
             test.append(entry)
 
     labels = {}
