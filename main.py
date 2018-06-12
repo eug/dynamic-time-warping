@@ -20,6 +20,8 @@ def predict(train, test, algo_func, algo_kwargs):
     for tsl, t in tqdm(test):
         algo_kwargs['t'] = t
         min_label, min_score = -1, math.inf
+        algo_kwargs['prune_score'] = math.inf
+
         for trl, s in train:
             algo_kwargs['s'] = s
             score = algo_func(**algo_kwargs)
@@ -27,6 +29,7 @@ def predict(train, test, algo_func, algo_kwargs):
                 min_score = score
                 min_label = trl
                 algo_kwargs['prune_score'] = min_score
+
         y_pred.append(tsl == min_label)
 
     return y_pred
@@ -63,7 +66,7 @@ def parse_args(argv):
             config.algo_kwargs['w'] = int(arg)
         elif opt in ('-h', '--help'):
             config.show_help = True
-    
+
     return config
 
 
