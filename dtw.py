@@ -10,27 +10,31 @@ def dtw_naive(s, t, dist, prune_score=None):
     dtw[0][0] = 0
 
     for i in range(1, n):
+        min_row_score = math.inf
         for j in range(1, m):
             cost = dist(s[i], t[j])
             dtw[i][j] = cost + min(dtw[i-1][j], dtw[i][j-1], dtw[i-1][j-1])
+            min_row_score = min(min_row_score, dtw[i][j])
 
-        if prune_score and min(dtw[i]) > prune_score:
+        if prune_score and min_row_score > prune_score:
             return math.inf
 
     return dtw[-1][-1]
 
-def dtw_sakoe_chiba(s, t, w, dist, prune_score=None):
+def dtw_sakoe_chiba(s, t, dist, w, prune_score=None):
     n, m = len(s), len(t)
-    w = max(w, abs(n - m) + 1)
+    w = abs(n - m) + w
     dtw = matrix(n, m, default=math.inf)
     dtw[0][0] = 0
 
     for i in range(1, n):
+        min_row_score = math.inf
         for j in range(max(1, i-w), min(m, i+w)):
             cost = dist(s[i], t[j])
             dtw[i][j] = cost + min(dtw[i-1][j], dtw[i][j-1], dtw[i-1][j-1])
+            min_row_score = min(min_row_score, dtw[i][j])
 
-        if prune_score and min(dtw[i]) > prune_score:
+        if prune_score and min_row_score > prune_score:
             return math.inf
 
     return dtw[-1][-1]
